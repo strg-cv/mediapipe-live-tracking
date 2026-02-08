@@ -1,7 +1,10 @@
 # mediapipe-live-tracking
 Realtime body, hand, and face tracking in the browser using MediaPipe.
 
-![Tracking Banner](tracking_banner.png)
+<div style="display: flex; gap: 20px;">
+  <img src="images/poselandmarks.png" alt="Body Landmarks" width="45%">
+  <img src="images/handlandmarks.png" alt="Hand Landmarks" width="45%">
+</div>
 
 # MediaPipe Live Tracking
 
