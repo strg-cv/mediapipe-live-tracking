@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Hand-Skelett Tracker</title>
+<style>
+html, body { margin:0; padding:0; overflow:hidden; background:black; }
+video, canvas { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="canvas"></canvas>
+
+<!-- MediaPipe Hands -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// Kamera starten
+async function startCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
+  video.srcObject = stream;
+  await new Promise(res=>video.onloadeddata=res);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+}
+
+// Hand-Skelett zeichnen
+function drawHands(results) {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(results.multiHandLandmarks){
+    for(const landmarks of results.multiHandLandmarks){
+      // Linien lila
+      window.drawConnectors(ctx, landmarks, window.HAND_CONNECTIONS, {color:'#AA00FF', lineWidth:4});
+      // Punkte kleiner (optional, hier 3px)
+      window.drawLandmarks(ctx, landmarks, {color:'#AA00FF', lineWidth:2, radius:3});
+    }
+  }
+}
+
+// MediaPipe Hands einrichten
+const hands = new Hands({
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+hands.setOptions({maxNumHands:2, modelComplexity:1, minDetectionConfidence:0.7, minTrackingConfidence:0.5});
+hands.onResults(drawHands);
+
+// Video Loop
+async function onFrame(){
+  await hands.send({image:video});
+  requestAnimationFrame(onFrame);
+}
+
+// Start alles
+(async ()=>{
+  await startCamera();
+  onFrame();
+})();
+</script>
+</body>
+</html>

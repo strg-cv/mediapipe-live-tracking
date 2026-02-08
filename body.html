@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Body Skeleton Tracker</title>
+<style>
+html, body { margin:0; padding:0; overflow:hidden; background:black; }
+video, canvas { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="canvas"></canvas>
+
+<!-- MediaPipe Pose -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// Kamera starten
+async function startCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
+  video.srcObject = stream;
+  await new Promise(res=>video.onloadeddata=res);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+}
+
+// Filter: keine Füße (16-31), kein Gesicht (0-10)
+const bodyConnections = [
+  [11,12],[12,24],[11,23],[24,26],[23,25],[26,28],[25,27], // Beine Oberschenkel
+  [12,14],[14,16],[11,13],[13,15], // Arme
+  [12,11] // Schultern Verbindung
+  // Rücken kann man noch verbinden z.B. 11-23-24-12 für Rumpf
+];
+
+// Skelett zeichnen
+function drawSkeleton(results){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(results.poseLandmarks){
+    const landmarks = results.poseLandmarks;
+
+    // Linien
+    ctx.strokeStyle = '#AA00FF';
+    ctx.lineWidth = 4;
+    for(const [i,j] of bodyConnections){
+      if(landmarks[i] && landmarks[j]){
+        ctx.beginPath();
+        ctx.moveTo(landmarks[i].x*canvas.width, landmarks[i].y*canvas.height);
+        ctx.lineTo(landmarks[j].x*canvas.width, landmarks[j].y*canvas.height);
+        ctx.stroke();
+      }
+    }
+
+    // Punkte
+    ctx.fillStyle = '#AA00FF';
+    for(const i of [11,12,13,14,15,16,23,24,25,26,27,28]){
+      const lm = landmarks[i];
+      if(lm){
+        ctx.beginPath();
+        ctx.arc(lm.x*canvas.width, lm.y*canvas.height, 4, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// MediaPipe Pose einrichten
+const pose = new Pose({
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+});
+pose.setOptions({modelComplexity:1, smoothLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5});
+pose.onResults(drawSkeleton);
+
+// Video Loop
+async function onFrame(){
+  await pose.send({image:video});
+  requestAnimationFrame(onFrame);
+}
+
+// Start alles
+(async ()=>{
+  await startCamera();
+  onFrame();
+})();
+</script>
+</body>
+</html>
